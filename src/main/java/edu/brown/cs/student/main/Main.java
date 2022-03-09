@@ -6,20 +6,28 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Type;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import com.google.common.collect.ImmutableMap;
+import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import freemarker.template.Configuration;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.junit.runner.Request;
 import spark.*;
 import spark.template.freemarker.FreeMarkerEngine;
 
 /**
  * The Main class of our project. This is where execution begins.
- *
  */
 public final class Main {
 
@@ -28,8 +36,7 @@ public final class Main {
   /**
    * The initial method called when execution begins.
    *
-   * @param args
-   *             An array of command line arguments
+   * @param args An array of command line arguments
    */
   public static void main(String[] args) {
     new Main(args).run();
@@ -80,6 +87,8 @@ public final class Main {
     // Allows requests from any domain (i.e., any URL). This makes development
     // easier, but it’s not a good idea for deployment.
     Spark.before((request, response) -> response.header("Access-Control-Allow-Origin", "*"));
+
+    Spark.post("/results", new ResultsHandler());
   }
 
   /**
@@ -87,7 +96,7 @@ public final class Main {
    */
   private static class ExceptionPrinter implements ExceptionHandler {
     @Override
-    public void handle(Exception e, Request req, Response res) {
+    public void handle(Exception e, spark.Request req, Response res) {
       res.status(500);
       StringWriter stacktrace = new StringWriter();
       try (PrintWriter pw = new PrintWriter(stacktrace)) {
@@ -101,23 +110,35 @@ public final class Main {
 
   /**
    * Handles requests for horoscope matching on an input
-   * 
+   *
    * @return GSON which contains the result of MatchMaker.makeMatches
    */
   private static class ResultsHandler implements Route {
     @Override
-    public String handle(Request req, Response res) {
+    public String handle(spark.Request req, Response res) throws JSONException {
       // TODO: Get JSONObject from req and use it to get the value of the sun, moon,
       // and rising
       // for generating matches
+      JSONObject jsonObj = null;
+      try {
+        jsonObj = new JSONObject(req.body());
+      } catch (JSONException e) {
+        e.printStackTrace();
+      }
+
+      String sun = jsonObj.getString("sun");
+      String moon = jsonObj.getString("moon");
+      String rising = jsonObj.getString("rising");
 
       // TODO: use the MatchMaker.makeMatches method to get matches
+      List<String> matches = MatchMaker.makeMatches(sun, moon, rising);
 
       // TODO: create an immutable map using the matches
+      Map suggestions = ImmutableMap.of("data", matches);
 
       // TODO: return a json of the suggestions (HINT: use GSON.toJson())
       Gson GSON = new Gson();
-      return null;
+      return GSON.toJson(suggestions);
     }
   }
 }
